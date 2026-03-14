@@ -1,0 +1,29 @@
+# venv
+.venv/
+venv/
+env/
+ENV/
+
+# anything related to build folders
+build/
+
+# vscode
+.vscode/
+
+# jetbrains
+.idea/
+
+# env variables
+*.env
+
+# pycache
+**/__pycache__/
+__pycache__/
+*.pyc
+
+# logs
+.logs/
+*.log
+
+# macOS
+.DS_store
