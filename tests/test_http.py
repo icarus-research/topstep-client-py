@@ -2,7 +2,6 @@
 
 import httpx
 import pytest
-import respx
 
 from topstep.exceptions import APIError, AuthenticationError, HTTPError, RateLimitError
 from topstep.http import HTTPClient

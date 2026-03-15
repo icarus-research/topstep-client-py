@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+import inspect
 import logging
 from collections.abc import Callable
 from typing import Any
@@ -13,7 +15,7 @@ from topstep.http import WS_USER_HUB
 logger = logging.getLogger("topstep.realtime.user")
 
 # Callback type: receives event data
-UserCallback = Callable[..., None]
+UserCallback = Callable[..., Any]
 
 
 class UserHub:
@@ -25,15 +27,17 @@ class UserHub:
 
         async with await TopstepClient.create(...) as client:
             client.user.on_order(my_order_handler)
-            client.user.connect()
-            client.user.subscribe_orders(account_id)
+            await client.user.connect()
+            await client.user.subscribe_orders(account_id)
     """
 
     def __init__(self, token: str, hub_url: str = WS_USER_HUB) -> None:
         self._token = token
         self._hub_url = hub_url
         self._hub: Any = None
-        self._subscriptions: list[tuple[str, list]] = []
+        self._subscriptions: set[tuple[str, tuple[Any, ...]]] = set()
+        self._loop: asyncio.AbstractEventLoop | None = None
+        self._connected = False
 
         # User callbacks
         self._on_account: UserCallback | None = None
@@ -67,22 +71,33 @@ class UserHub:
         """Register a handler called when the WebSocket connection closes."""
         self._on_close = callback
 
-    def connect(self) -> None:
-        """Build and start the SignalR connection.
+    def set_token(self, token: str) -> None:
+        """Update the auth token used for future connections."""
+        self._token = token
 
-        This is a blocking call — the connection runs in a background thread
-        managed by signalrcore. Call ``stop()`` to disconnect.
+    async def connect(self) -> None:
+        """Build and start the SignalR connection without blocking the event loop.
+
+        SignalR itself runs its own background thread. This method only waits
+        for the initial connection startup to complete.
         """
-        url = f"{self._hub_url}?access_token={self._token}"
+        if self._connected:
+            return
 
+        self._loop = asyncio.get_running_loop()
         self._hub = (
             HubConnectionBuilder()
-            .with_url(url, options={
-                "transport": "websockets",
-                "skip_negotiation": True,
+            .with_url(self._hub_url, options={
+                "access_token_factory": lambda: self._token,
                 "verify_ssl": True,
             })
             .configure_logging(logging.WARNING)
+            .with_automatic_reconnect({
+                "type": "raw",
+                "keep_alive_interval": 10,
+                "reconnect_interval": 5,
+                "max_attempts": 0,
+            })
             .build()
         )
 
@@ -96,95 +111,147 @@ class UserHub:
         self._hub.on_close(self._handle_close)
 
         logger.info("Connecting to User Hub...")
-        self._hub.start()
+        try:
+            await asyncio.to_thread(self._hub.start)
+        except Exception:
+            self._hub = None
+            self._connected = False
+            raise
 
-    def stop(self) -> None:
+        self._connected = True
+
+    async def stop(self) -> None:
         """Disconnect from the User Hub."""
         if self._hub is not None:
-            self._hub.stop()
-            self._hub = None
-            self._subscriptions.clear()
-            logger.info("User Hub disconnected")
+            try:
+                await asyncio.to_thread(self._hub.stop)
+            finally:
+                self._hub = None
+                self._subscriptions.clear()
+                self._connected = False
+                logger.info("User Hub disconnected")
 
     # --- Subscription management ---
 
-    def subscribe_accounts(self) -> None:
+    async def subscribe_accounts(self) -> None:
         """Subscribe to real-time account balance updates."""
-        self._send("SubscribeAccounts", [])
+        await self._send("SubscribeAccounts", [])
+        self._subscriptions.add(("SubscribeAccounts", ()))
 
-    def unsubscribe_accounts(self) -> None:
+    async def unsubscribe_accounts(self) -> None:
         """Unsubscribe from account updates."""
-        self._send("UnsubscribeAccounts", [])
+        await self._send("UnsubscribeAccounts", [])
+        self._subscriptions.discard(("SubscribeAccounts", ()))
 
-    def subscribe_orders(self, account_id: int) -> None:
+    async def subscribe_orders(self, account_id: int) -> None:
         """Subscribe to real-time order updates for an account."""
-        self._send("SubscribeOrders", [account_id])
+        await self._send("SubscribeOrders", [account_id])
+        self._subscriptions.add(("SubscribeOrders", (account_id,)))
 
-    def unsubscribe_orders(self, account_id: int) -> None:
+    async def unsubscribe_orders(self, account_id: int) -> None:
         """Unsubscribe from order updates."""
-        self._send("UnsubscribeOrders", [account_id])
+        await self._send("UnsubscribeOrders", [account_id])
+        self._subscriptions.discard(("SubscribeOrders", (account_id,)))
 
-    def subscribe_positions(self, account_id: int) -> None:
+    async def subscribe_positions(self, account_id: int) -> None:
         """Subscribe to real-time position updates for an account."""
-        self._send("SubscribePositions", [account_id])
+        await self._send("SubscribePositions", [account_id])
+        self._subscriptions.add(("SubscribePositions", (account_id,)))
 
-    def unsubscribe_positions(self, account_id: int) -> None:
+    async def unsubscribe_positions(self, account_id: int) -> None:
         """Unsubscribe from position updates."""
-        self._send("UnsubscribePositions", [account_id])
+        await self._send("UnsubscribePositions", [account_id])
+        self._subscriptions.discard(("SubscribePositions", (account_id,)))
 
-    def subscribe_trades(self, account_id: int) -> None:
+    async def subscribe_trades(self, account_id: int) -> None:
         """Subscribe to real-time trade updates for an account."""
-        self._send("SubscribeTrades", [account_id])
+        await self._send("SubscribeTrades", [account_id])
+        self._subscriptions.add(("SubscribeTrades", (account_id,)))
 
-    def unsubscribe_trades(self, account_id: int) -> None:
+    async def unsubscribe_trades(self, account_id: int) -> None:
         """Unsubscribe from trade updates."""
-        self._send("UnsubscribeTrades", [account_id])
+        await self._send("UnsubscribeTrades", [account_id])
+        self._subscriptions.discard(("SubscribeTrades", (account_id,)))
 
-    def subscribe_all(self, account_id: int) -> None:
+    async def subscribe_all(self, account_id: int) -> None:
         """Subscribe to accounts, orders, positions, and trades."""
-        self.subscribe_accounts()
-        self.subscribe_orders(account_id)
-        self.subscribe_positions(account_id)
-        self.subscribe_trades(account_id)
+        await self.subscribe_accounts()
+        await self.subscribe_orders(account_id)
+        await self.subscribe_positions(account_id)
+        await self.subscribe_trades(account_id)
 
-    def unsubscribe_all(self, account_id: int) -> None:
+    async def unsubscribe_all(self, account_id: int) -> None:
         """Unsubscribe from all user streams."""
-        self.unsubscribe_accounts()
-        self.unsubscribe_orders(account_id)
-        self.unsubscribe_positions(account_id)
-        self.unsubscribe_trades(account_id)
+        await self.unsubscribe_accounts()
+        await self.unsubscribe_orders(account_id)
+        await self.unsubscribe_positions(account_id)
+        await self.unsubscribe_trades(account_id)
 
     # --- Internal handlers ---
 
-    def _send(self, method: str, args: list) -> None:
+    async def _send(self, method: str, args: list) -> None:
         if self._hub is None:
             raise RuntimeError("Not connected — call connect() first")
-        self._hub.send(method, args)
-        self._subscriptions.append((method, args))
+        await asyncio.to_thread(self._hub.send, method, args)
         logger.debug("Sent %s(%s)", method, args)
 
+    async def _restore_subscriptions(self) -> None:
+        if self._hub is None:
+            return
+
+        for method, args in sorted(self._subscriptions):
+            await asyncio.to_thread(self._hub.send, method, list(args))
+            logger.debug("Restored %s(%s)", method, args)
+
+    def _dispatch_callback(self, callback: Callable[..., Any] | None, *args: Any) -> None:
+        if callback is None:
+            return
+
+        loop = self._loop
+        if loop is None or loop.is_closed():
+            logger.warning("Dropping realtime callback because no active event loop is available")
+            return
+
+        def runner() -> None:
+            try:
+                result = callback(*args)
+                if inspect.isawaitable(result):
+                    task = loop.create_task(result)
+                    task.add_done_callback(self._log_task_error)
+            except Exception:
+                logger.exception("Unhandled exception in user callback")
+
+        loop.call_soon_threadsafe(runner)
+
+    def _log_task_error(self, task: asyncio.Task[Any]) -> None:
+        try:
+            task.result()
+        except asyncio.CancelledError:
+            return
+        except Exception:
+            logger.exception("Unhandled exception in async user callback")
+
     def _handle_account(self, *args: Any) -> None:
-        if self._on_account:
-            self._on_account(*args)
+        self._dispatch_callback(self._on_account, *args)
 
     def _handle_order(self, *args: Any) -> None:
-        if self._on_order:
-            self._on_order(*args)
+        self._dispatch_callback(self._on_order, *args)
 
     def _handle_position(self, *args: Any) -> None:
-        if self._on_position:
-            self._on_position(*args)
+        self._dispatch_callback(self._on_position, *args)
 
     def _handle_trade(self, *args: Any) -> None:
-        if self._on_trade:
-            self._on_trade(*args)
+        self._dispatch_callback(self._on_trade, *args)
 
     def _handle_open(self) -> None:
         logger.info("User Hub connected")
-        if self._on_open:
-            self._on_open()
+        if self._subscriptions and self._loop is not None and not self._loop.is_closed():
+            self._loop.call_soon_threadsafe(
+                lambda: self._loop.create_task(self._restore_subscriptions())
+            )
+        self._dispatch_callback(self._on_open)
 
     def _handle_close(self) -> None:
         logger.info("User Hub disconnected")
-        if self._on_close:
-            self._on_close()
+        self._connected = False
+        self._dispatch_callback(self._on_close)

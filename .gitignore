@@ -6,6 +6,8 @@ ENV/
 
 # anything related to build folders
 build/
+dist/
+*.egg-info/
 
 # vscode
 .vscode/
@@ -20,6 +22,8 @@ build/
 **/__pycache__/
 __pycache__/
 *.pyc
+.pytest_cache/
+
 
 # logs
 .logs/
@@ -27,6 +31,3 @@ __pycache__/
 
 # macOS
 .DS_store
-
-# temporary
-codex-chat.txt

@@ -11,8 +11,8 @@ from topstep.exceptions import APIError, AuthenticationError, HTTPError, RateLim
 
 # TopstepX base URLs
 BASE_URL = "https://api.topstepx.com"
-WS_USER_HUB = "wss://rtc.topstepx.com/hubs/user"
-WS_MARKET_HUB = "wss://rtc.topstepx.com/hubs/market"
+WS_USER_HUB = "https://rtc.topstepx.com/hubs/user"
+WS_MARKET_HUB = "https://rtc.topstepx.com/hubs/market"
 
 # Default retry config
 MAX_RETRIES = 3

@@ -2,6 +2,14 @@
 
 Lightweight async Python client for the [TopstepX](https://www.topstep.com/) / [ProjectX Gateway API](https://gateway.docs.projectx.com/docs/intro/).
 
+## Disclaimer
+
+This project is an independent community-built library. It is not officially affiliated with, endorsed by, maintained by, or otherwise directly associated with Topstep, TopstepX, or ProjectX.
+
+The goal of this package is to provide a clean and practical Python client for the public API and realtime interfaces. It is maintained on a best-effort basis and will be kept up to date as quickly as reasonably possible when the upstream API changes.
+
+This repository only provides the API client layer. It does not include trading strategies, alpha generation, signal logic, backtesting frameworks, portfolio tooling, or other trader-specific systems. Those decisions and tools are intentionally left to each user and their own workflow.
+
 - Async-first (built on `httpx`)
 - Fully typed responses with Pydantic models
 - All 16 REST endpoints covered
@@ -122,15 +130,15 @@ async def main():
         client.market.on_depth(lambda *args: print("DEPTH:", args))
 
         # Connect and subscribe
-        client.market.connect()
-        client.market.subscribe_all("CON.F.US.ENQ.H26")
+        await client.market.connect()
+        await client.market.subscribe_all("CON.F.US.ENQ.H26")
 
         # Keep alive
         try:
             while True:
                 await asyncio.sleep(1)
         except KeyboardInterrupt:
-            client.market.stop()
+            await client.market.stop()
 
 asyncio.run(main())
 ```
@@ -145,8 +153,8 @@ async with await TopstepClient.create(...) as client:
     client.user.on_trade(lambda *args: print("TRADE:", args))
     client.user.on_account(lambda *args: print("ACCOUNT:", args))
 
-    client.user.connect()
-    client.user.subscribe_all(account_id=account.id)
+    await client.user.connect()
+    await client.user.subscribe_all(account_id=account.id)
 
     # ...
 ```
@@ -180,20 +188,6 @@ except TopstepError:
     pass
 ```
 
-## API Coverage
-
-| Category | Endpoints | Status |
-|----------|-----------|--------|
-| Auth | loginKey, loginApp, validate | Done |
-| Accounts | search | Done |
-| Contracts | available, search, searchById | Done |
-| History | retrieveBars | Done |
-| Orders | place, modify, cancel, search, searchOpen | Done |
-| Positions | searchOpen, closeContract, partialCloseContract | Done |
-| Trades | search | Done |
-| **WebSocket Market** | quotes, trades, depth | Done |
-| **WebSocket User** | accounts, orders, positions, trades | Done |
-
 ## Rate Limits
 
 The API enforces these limits (handled automatically with retry + backoff):
@@ -209,7 +203,3 @@ cd topstep-client-py
 pip install -e ".[dev]"
 pytest
 ```
-
-## License
-
-MIT

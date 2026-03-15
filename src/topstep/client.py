@@ -57,7 +57,12 @@ class TopstepClient:
         authentication is an async operation.
         """
         http = HTTPClient(base_url=base_url, timeout=timeout)
-        token = await auth.login_key(http, username, api_key)
+        try:
+            token = await auth.login_key(http, username, api_key)
+        except Exception:
+            await http.close()
+            raise
+
         http.token = token
         return cls(http)
 
@@ -71,6 +76,10 @@ class TopstepClient:
         new_token = await auth.validate_token(self._http)
         if new_token:
             self._http.token = new_token
+            if self._market_hub is not None:
+                self._market_hub.set_token(new_token)
+            if self._user_hub is not None:
+                self._user_hub.set_token(new_token)
 
     @property
     def market(self) -> MarketHub:
@@ -97,9 +106,9 @@ class TopstepClient:
     async def close(self) -> None:
         """Close all connections (HTTP + WebSocket hubs)."""
         if self._market_hub is not None:
-            self._market_hub.stop()
+            await self._market_hub.stop()
         if self._user_hub is not None:
-            self._user_hub.stop()
+            await self._user_hub.stop()
         await self._http.close()
 
     async def __aenter__(self) -> TopstepClient:

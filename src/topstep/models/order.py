@@ -6,8 +6,10 @@ from pydantic import BaseModel, Field
 
 
 class OrderType(IntEnum):
+    UNKNOWN = 0
     LIMIT = 1
     MARKET = 2
+    STOP_LIMIT = 3
     STOP = 4
     TRAILING_STOP = 5
     JOIN_BID = 6
