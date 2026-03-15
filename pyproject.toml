@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "topstep-client-py"
-version = "0.1.0"
+version = "0.1.1"
 description = "Lightweight async Python client for the TopstepX / ProjectX Gateway API"
 readme = "README.md"
 license = "MIT"
