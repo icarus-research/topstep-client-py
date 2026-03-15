@@ -12,7 +12,7 @@ class HistoryEndpoint:
     def __init__(self, http: HTTPClient) -> None:
         self._http = http
 
-    def retrieve_bars(
+    async def retrieve_bars(
         self,
         contract_id: str,
         start: datetime,
@@ -35,7 +35,7 @@ class HistoryEndpoint:
 
         Rate limit: 50 requests per 30 seconds.
         """
-        data = self._http.post("/api/History/retrieveBars", {
+        data = await self._http.post("/api/History/retrieveBars", {
             "contractId": contract_id,
             "live": False,
             "startTime": start.strftime("%Y-%m-%dT%H:%M:%SZ"),

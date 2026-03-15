@@ -13,7 +13,7 @@ class TradesEndpoint:
     def __init__(self, http: HTTPClient) -> None:
         self._http = http
 
-    def search(
+    async def search(
         self,
         account_id: int,
         start: datetime,
@@ -27,5 +27,5 @@ class TradesEndpoint:
         if end is not None:
             payload["endTimestamp"] = end.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-        data = self._http.post("/api/Trade/search", payload)
+        data = await self._http.post("/api/Trade/search", payload)
         return [Trade.model_validate(t) for t in data.get("trades", [])]

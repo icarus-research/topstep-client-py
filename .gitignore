@@ -27,3 +27,6 @@ __pycache__/
 
 # macOS
 .DS_store
+
+# temporary
+codex-chat.txt

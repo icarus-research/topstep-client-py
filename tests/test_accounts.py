@@ -1,7 +1,6 @@
 """Tests for accounts endpoint."""
 
 import httpx
-import respx
 
 from topstep.endpoints.accounts import AccountsEndpoint
 from topstep.models.account import Account
@@ -9,7 +8,7 @@ from tests.conftest import api_response
 
 
 class TestAccountsSearch:
-    def test_returns_accounts(self, mock_api):
+    async def test_returns_accounts(self, mock_api):
         router, http = mock_api
         router.post("/api/Account/search").mock(
             return_value=httpx.Response(200, json=api_response({
@@ -23,7 +22,7 @@ class TestAccountsSearch:
         )
 
         endpoint = AccountsEndpoint(http)
-        accounts = endpoint.search()
+        accounts = await endpoint.search()
 
         assert len(accounts) == 2
         assert isinstance(accounts[0], Account)
@@ -31,12 +30,12 @@ class TestAccountsSearch:
         assert accounts[0].balance == 50000.0
         assert accounts[0].can_trade is True
 
-    def test_empty_accounts(self, mock_api):
+    async def test_empty_accounts(self, mock_api):
         router, http = mock_api
         router.post("/api/Account/search").mock(
             return_value=httpx.Response(200, json=api_response({"accounts": []}))
         )
 
         endpoint = AccountsEndpoint(http)
-        accounts = endpoint.search()
+        accounts = await endpoint.search()
         assert accounts == []

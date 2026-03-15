@@ -1,8 +1,8 @@
-"""Low-level HTTP client with auth headers, retry, and error handling."""
+"""Low-level async HTTP client with auth headers, retry, and error handling."""
 
 from __future__ import annotations
 
-import time
+import asyncio
 from typing import Any
 
 import httpx
@@ -11,6 +11,8 @@ from topstep.exceptions import APIError, AuthenticationError, HTTPError, RateLim
 
 # TopstepX base URLs
 BASE_URL = "https://api.topstepx.com"
+WS_USER_HUB = "wss://rtc.topstepx.com/hubs/user"
+WS_MARKET_HUB = "wss://rtc.topstepx.com/hubs/market"
 
 # Default retry config
 MAX_RETRIES = 3
@@ -18,12 +20,12 @@ RETRY_BACKOFF = 1.0  # seconds, doubles each retry
 
 
 class HTTPClient:
-    """Thin HTTP wrapper that handles auth headers, retries, and error parsing."""
+    """Async HTTP wrapper that handles auth headers, retries, and error parsing."""
 
     def __init__(self, base_url: str = BASE_URL, timeout: float = 30.0):
         self.base_url = base_url.rstrip("/")
         self._token: str | None = None
-        self._client = httpx.Client(
+        self._client = httpx.AsyncClient(
             base_url=self.base_url,
             timeout=timeout,
             headers={
@@ -44,7 +46,7 @@ class HTTPClient:
         else:
             self._client.headers.pop("Authorization", None)
 
-    def post(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def post(self, path: str, payload: dict[str, Any] | None = None) -> dict[str, Any]:
         """Make a POST request with retry logic and error handling.
 
         Returns the parsed JSON response body (the API envelope is validated
@@ -54,20 +56,20 @@ class HTTPClient:
 
         for attempt in range(MAX_RETRIES):
             try:
-                response = self._client.post(path, json=payload or {})
+                response = await self._client.post(path, json=payload or {})
             except httpx.TimeoutException as exc:
                 last_exc = HTTPError(408, f"Request timed out: {exc}")
-                time.sleep(RETRY_BACKOFF * (2**attempt))
+                await asyncio.sleep(RETRY_BACKOFF * (2**attempt))
                 continue
             except httpx.HTTPError as exc:
                 last_exc = HTTPError(0, str(exc))
-                time.sleep(RETRY_BACKOFF * (2**attempt))
+                await asyncio.sleep(RETRY_BACKOFF * (2**attempt))
                 continue
 
             # Rate limit — wait and retry
             if response.status_code == 429:
                 last_exc = RateLimitError()
-                time.sleep(RETRY_BACKOFF * (2**attempt))
+                await asyncio.sleep(RETRY_BACKOFF * (2**attempt))
                 continue
 
             # Auth failure — no point retrying
@@ -90,11 +92,11 @@ class HTTPClient:
         # All retries exhausted
         raise last_exc  # type: ignore[misc]
 
-    def close(self) -> None:
-        self._client.close()
+    async def close(self) -> None:
+        await self._client.aclose()
 
-    def __enter__(self) -> HTTPClient:
+    async def __aenter__(self) -> HTTPClient:
         return self
 
-    def __exit__(self, *args: object) -> None:
-        self.close()
+    async def __aexit__(self, *args: object) -> None:
+        await self.close()

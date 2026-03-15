@@ -6,9 +6,9 @@ from topstep.exceptions import AuthenticationError
 from topstep.http import HTTPClient
 
 
-def login_key(http: HTTPClient, username: str, api_key: str) -> str:
+async def login_key(http: HTTPClient, username: str, api_key: str) -> str:
     """Authenticate with username + API key. Returns the session token."""
-    data = http.post("/api/Auth/loginKey", {
+    data = await http.post("/api/Auth/loginKey", {
         "userName": username,
         "apiKey": api_key,
     })
@@ -20,7 +20,7 @@ def login_key(http: HTTPClient, username: str, api_key: str) -> str:
     return token
 
 
-def login_app(
+async def login_app(
     http: HTTPClient,
     username: str,
     password: str,
@@ -29,7 +29,7 @@ def login_app(
     verify_key: str,
 ) -> str:
     """Authenticate as an authorized application. Returns the session token."""
-    data = http.post("/api/Auth/loginApp", {
+    data = await http.post("/api/Auth/loginApp", {
         "userName": username,
         "password": password,
         "deviceId": device_id,
@@ -44,7 +44,7 @@ def login_app(
     return token
 
 
-def validate_token(http: HTTPClient) -> str | None:
+async def validate_token(http: HTTPClient) -> str | None:
     """Validate the current token and return a refreshed one if available."""
-    data = http.post("/api/Auth/validate")
+    data = await http.post("/api/Auth/validate")
     return data.get("newToken") or data.get("token")

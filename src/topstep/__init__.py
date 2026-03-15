@@ -1,4 +1,4 @@
-"""TopstepX Python Client — lightweight SDK for the ProjectX Gateway API."""
+"""TopstepX Python Client — async SDK for the ProjectX Gateway API."""
 
 from topstep.client import TopstepClient
 from topstep.exceptions import (
@@ -23,6 +23,7 @@ from topstep.models import (
     PositionType,
     Trade,
 )
+from topstep.realtime import MarketHub, UserHub
 
 __version__ = "0.1.0"
 
@@ -48,4 +49,7 @@ __all__ = [
     "Position",
     "PositionType",
     "Trade",
+    # Realtime
+    "MarketHub",
+    "UserHub",
 ]

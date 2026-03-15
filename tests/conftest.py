@@ -6,6 +6,7 @@ import respx
 
 from topstep.http import HTTPClient
 
+
 # Standard successful API envelope
 def api_response(data: dict | None = None) -> dict:
     """Build a standard API success response."""
@@ -21,10 +22,10 @@ def api_error(code: int = -1, message: str = "Something went wrong") -> dict:
 
 
 @pytest.fixture
-def mock_api():
-    """Provide a respx mock router and a pre-authenticated HTTPClient."""
+async def mock_api():
+    """Provide a respx mock router and a pre-authenticated async HTTPClient."""
     with respx.mock(base_url="https://api.topstepx.com") as router:
         client = HTTPClient(base_url="https://api.topstepx.com")
         client.token = "test-token-123"
         yield router, client
-        client.close()
+        await client.close()

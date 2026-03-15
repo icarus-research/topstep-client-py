@@ -10,9 +10,9 @@ class AccountsEndpoint:
     def __init__(self, http: HTTPClient) -> None:
         self._http = http
 
-    def search(self, only_active: bool = True) -> list[Account]:
+    async def search(self, only_active: bool = True) -> list[Account]:
         """Search accounts. By default returns only active accounts."""
-        data = self._http.post("/api/Account/search", {
+        data = await self._http.post("/api/Account/search", {
             "onlyActiveAccounts": only_active,
         })
         return [Account.model_validate(a) for a in data.get("accounts", [])]
