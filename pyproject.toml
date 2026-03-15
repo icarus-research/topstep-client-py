@@ -35,6 +35,11 @@ dev = [
     "respx>=0.22",
 ]
 
+[project.urls]
+Homepage = "https://github.com/icarus-research/topstep-client-py"
+Repository = "https://github.com/icarus-research/topstep-client-py"
+Issues = "https://github.com/icarus-research/topstep-client-py/issues"
+
 [tool.setuptools.packages.find]
 where = ["src"]
 
