@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/icarus-research/topstep-client-py/actions/workflows/ci.yml/badge.svg?branch=main)](https://github.com/icarus-research/topstep-client-py/actions/workflows/ci.yml)
 [![PyPI - Version](https://img.shields.io/pypi/v/topstep-client-py)](https://pypi.org/project/topstep-client-py/)
-[![PyPI - Downloads](https://img.shields.io/pypi/dm/topstep-client-py)](https://pypi.org/project/topstep-client-py/)
+[![PyPI - Downloads](https://img.shields.io/pypi/dm/topstep-client-py)](https://pypistats.org/packages/topstep-client-py)
 [![Python Version](https://img.shields.io/badge/python-3.10%2B-blue.svg)](https://python.org)
 [![License](https://img.shields.io/badge/license-MIT-green.svg)](LICENSE)
 [![Async](https://img.shields.io/badge/async-native-brightgreen.svg)](#topstep-client-py)
